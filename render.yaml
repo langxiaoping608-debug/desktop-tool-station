@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: desktop-tool-station
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python 桌面工具站.py
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: DEEPSEEK_API_KEY
+        sync: false
