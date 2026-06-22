@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工单备注替换工具</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Microsoft YaHei","PingFang SC",sans-serif; background: #f0f2f5; min-height: 100vh; padding: 24px 16px; }
+    .container { max-width: 860px; margin: 0 auto; }
+    h1 { text-align: center; font-size: 20px; color: #1a1a2e; margin-bottom: 4px; }
+    .subtitle { text-align: center; font-size: 13px; color: #888; margin-bottom: 18px; }
+    .rule-tip { background: #fff7e6; border-left: 4px solid #fa8c16; padding: 10px 14px; border-radius: 4px; font-size: 13px; color: #7c4a00; margin-bottom: 18px; }
+    .card { background: #fff; border-radius: 10px; padding: 18px 20px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+    .card-title { font-size: 14px; font-weight: bold; color: #444; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+    .tpl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media(max-width:600px){ .tpl-grid{grid-template-columns:1fr;} }
+    .tpl-btn { border: 2px solid #e0e0e0; border-radius: 8px; padding: 10px 14px; cursor: pointer; background: #fafafa; text-align: left; transition: all 0.18s; font-family: inherit; }
+    .tpl-btn:hover{ border-color:#1890ff; background:#e6f4ff; }
+    .tpl-btn.active{ border-color:#1890ff; background:#e6f4ff; }
+    .tpl-btn .tpl-name{ font-size:13px; font-weight:bold; color:#1890ff; margin-bottom:3px; }
+    .tpl-btn .tpl-desc{ font-size:11px; color:#888; line-height:1.5; }
+    .preview-box { background:#f9f9f9; border:1px solid #e8e8e8; border-radius:6px; padding:11px 13px; font-size:13.5px; line-height:1.85; color:#333; white-space:pre-wrap; word-break:break-all; }
+    .preview-box .hl{ background:#ffe58f; border-radius:2px; padding:0 2px; font-weight:bold; }
+    .newinfo-box { border:1px solid #d9d9d9; border-radius:6px; padding:10px 12px; font-size:14px; font-family:inherit; resize:vertical; min-height:80px; width:100%; transition:border 0.2s; line-height:1.8; }
+    .newinfo-box:focus{ outline:none; border-color:#1890ff; box-shadow:0 0 0 2px rgba(24,144,255,0.15); }
+    .newinfo-box::placeholder{ color:#bbb; }
+    .analysis { background:#f0f5ff; border:1px solid #adc6ff; border-radius:6px; padding:12px 14px; font-size:13px; line-height:2.1; color:#333; margin-top:10px; }
+    .analysis .tag{ display:inline-block; background:#1890ff; color:#fff; font-size:11px; padding:1px 7px; border-radius:10px; margin-right:4px; }
+    .analysis .val-old{ color:#999; text-decoration:line-through; margin:0 4px; }
+    .analysis .val-new{ color:#52c41a; font-weight:bold; margin:0 4px; }
+    .analysis .same-tag{ color:#bbb; font-size:11px; }
+    .area-tag{ display:inline-block; font-size:11px; padding:1px 7px; border-radius:10px; margin-left:6px; font-weight:bold; }
+    .area-east{ background:#fff1f0; color:#ff4d4f; }
+    .area-south{ background:#fff7e6; color:#fa8c16; }
+    .area-west{ background:#e6f7ff; color:#1890ff; }
+    .area-north{ background:#f6ffed; color:#52c41a; }
+    .no-change{ color:#bbb; font-style:italic; }
+    .actions{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+    .btn-primary{ flex:1; min-width:120px; background:#1890ff; color:#fff; border:none; border-radius:8px; padding:11px 0; font-size:15px; font-family:inherit; font-weight:bold; cursor:pointer; transition:background 0.2s; }
+    .btn-primary:hover{ background:#40a9ff; }
+    .btn-secondary{ background:#fff; color:#666; border:1px solid #d9d9d9; border-radius:8px; padding:11px 20px; font-size:14px; font-family:inherit; cursor:pointer; transition:all 0.2s; }
+    .btn-secondary:hover{ border-color:#1890ff; color:#1890ff; }
+    .result-wrap{ position:relative; }
+    .result-box{ width:100%; border:1px solid #b7eb8f; border-radius:6px; padding:11px 70px 11px 13px; font-size:13.5px; font-family:inherit; background:#f6ffed; min-height:80px; line-height:1.85; white-space:pre-wrap; word-break:break-all; color:#333; }
+    .result-box .hl{ background:#fffb8f; border-radius:2px; padding:0 2px; }
+    .btn-copy{ position:absolute; top:50%; right:10px; transform:translateY(-50%); background:#52c41a; color:#fff; border:none; border-radius:5px; padding:5px 14px; font-size:13px; cursor:pointer; font-family:inherit; transition:background 0.2s; }
+    .btn-copy:hover{ background:#73d13d; }
+    .btn-copy.copied{ background:#237804; }
+    .stats{ font-size:12px; color:#999; margin-top:6px; }
+    .stats span{ color:#52c41a; font-weight:bold; }
+    .empty-tip{ color:#bbb; font-size:13px; font-style:italic; }
+    .hint-box{ background:#f5f5f5; border:1px solid #e0e0e0; border-radius:6px; padding:8px 12px; font-size:12px; color:#888; margin-top:8px; line-height:1.8; }
+    .hint-box strong{ color:#666; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>📋 工单备注替换工具</h1>
+  <p class="subtitle">智能识别 · 自动匹配派工数据库</p>
+  <div class="rule-tip">⚠️ <strong>使用：</strong>选模板 → 粘贴完整信息 → 自动分析替换（网点自动显示派工归属）</div>
+
+  <div class="card">
+    <div class="card-title">📄 选择工单模板</div>
+    <div class="tpl-grid" id="tplGrid"></div>
+  </div>
+
+  <div class="card" id="cardPreview" style="display:none">
+    <div class="card-title">👁 模板原文（黄色 = 可替换字段）</div>
+    <div class="preview-box" id="previewBox"></div>
+  </div>
+
+  <div class="card" id="cardNewInfo" style="display:none">
+    <div class="card-title">📝 粘贴新信息（任意格式均可）</div>
+    <textarea class="newinfo-box" id="newInfoBox" placeholder="直接粘贴整段话，无论什么格式都能识别，例如：
+顾客卡号3100000998877661，2026-04-28 09:15租用车号888001，还车站点6028，望领导批准。工号：1141" rows="4"></textarea>
+    <div class="hint-box">💡 智能识别：日期时间、卡号(14-16位)、车号(5-8位)、网点(4位)、手机号、工号</div>
+    <div class="analysis" id="analysisBox" style="display:none"></div>
+  </div>
+
+  <div class="actions" id="actionsBar" style="display:none">
+    <button class="btn-primary" onclick="analyzeAndPreview()">🔍 分析并预览</button>
+    <button class="btn-secondary" onclick="doReplace()">✅ 确认替换生成</button>
+    <button class="btn-secondary" onclick="resetAll()">🔄 重置</button>
+  </div>
+
+  <div class="card" id="cardResult" style="display:none">
+    <div class="card-title">✅ 替换结果</div>
+    <div class="result-wrap">
+      <div class="result-box" id="resultBox"></div>
+      <button class="btn-copy" id="btnCopy" onclick="copyResult()">复制</button>
+    </div>
+    <div class="stats" id="statsLine"></div>
+    <!-- 调试表格 -->
+    <div id="debugBox" style="display:none; margin-top:14px; background:#1a1a2e; color:#a8d8ea; font-size:12px; font-family:Consolas,monospace; border-radius:8px; padding:14px; line-height:2.2; max-height:300px; overflow-y:auto;"></div>
+  </div>
+</div>
+
+<script>
+// ====== 派工区域规则 ======
+const DISPATCH_RULES = [
+  {prefix:['881','889'], area:'城东', cls:'area-east'},
+  {prefix:['882'],       area:'城南', cls:'area-south'},
+  {prefix:['883','886'], area:'城西', cls:'area-west'},
+  {prefix:['884'],       area:'城北', cls:'area-north'},
+];
+function getDispatchArea(pos){
+  const p = String(pos).slice(0,3);
+  for(const r of DISPATCH_RULES){
+    if(r.prefix.includes(p)) return {area:r.area, cls:r.cls};
+  }
+  return {area:'未知', cls:'area-east'};
+}
+
+// ====== 网点数据库 ======
+let SITE_TO_POS = {};
+let siteLoaded = false;
+async function loadSiteData(){
+  try{
+    const res = await fetch('site_to_pos.json');
+    if(res.ok){ SITE_TO_POS = await res.json(); siteLoaded = true; }
+  }catch(e){ console.warn('网点库加载失败:', e.message); }
+}
+
+function getDispatchHtml(site){
+  if(!siteLoaded || !SITE_TO_POS[site]) return '';
+  const pos = SITE_TO_POS[site];
+  const {area,cls} = getDispatchArea(pos);
+  const t = nowTime();
+  return `<span class="area-tag ${cls}">${t} 派工${area}</span>`;
+}
+function nowTime(){
+  const d = new Date();
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+
+// ====== 智能识别引擎 ======
+// 按出现顺序提取：卡号/手机号 → 车号 → 租车时间 → 还车时间 → 网点
+function smartExtract(text){
+  const result = {
+    dates: [],      // 所有日期时间（按出现顺序）
+    cards: [],      // 卡号
+    phones: [],     // 手机号
+    bikes: [],      // 车号
+    stations: [],   // 网点
+    workids: [],    // 工号
+    fees: []        // 费用
+  };
+
+  // 扫描全文，按位置顺序收集所有匹配
+  const allMatches = [];
+
+  // 日期时间 - 支持日期与时间无空格或跨行，统一转为 YYYY-MM-DD HH:MM:SS
+  // 匹配顺序：先找 "日期 时间"（有空格），再找 "日期时间"（无空格/跨行）
+  const dateRegex1 = /(\d{4}[-/年]\d{1,2}[-/月]\d{1,2}[日]?)\s+(\d{1,2}:\d{2}(?::\d{2})?)/g;
+  const dateRegex2 = /(\d{4}[-/年]\d{1,2}[-/月]\d{1,2}[日]?)[\s]*?(\d{1,2}:\d{2}(?::\d{2})?)/g;
+  [dateRegex1, dateRegex2].forEach(regex => {
+    let m;
+    while((m=regex.exec(text))!==null){
+      let d = m[1].replace(/年/g,'-').replace(/月/g,'-').replace(/日/g,'') + ' ' + m[2];
+      d = d.replace(/\s+/g,' ');
+      // 如果日期和时间连在一起（无空格），修复
+      d = d.replace(/(\d{4}-\d{2}-\d{2})(\d{2}:)/,'$1 $2');
+      const parts = d.match(/^(\d+)-(\d+)-(\d+)\s+(\d+):(\d+):?(\d*)$/);
+      if(parts){
+        d = parts[1]+'-'+String(+parts[2]).padStart(2,'0')+'-'+String(+parts[3]).padStart(2,'0')+' '+
+            String(+parts[4]).padStart(2,'0')+':'+parts[5]+':'+(parts[6]||'00');
+      }
+      allMatches.push({pos:m.index, type:'date', val:d, raw:m[1]+' '+m[2]});
+    }
+  });
+
+  // 14-16位 → 卡号
+  const cardRegex = /\b(\d{14,16})\b/g;
+  while((m=cardRegex.exec(text))!==null){
+    allMatches.push({pos:m.index, type:'card', val:m[1]});
+  }
+
+  // 手机号
+  const phoneRegex = /\b(1\d{10})\b/g;
+  while((m=phoneRegex.exec(text))!==null){
+    allMatches.push({pos:m.index, type:'phone', val:m[1]});
+  }
+
+  // 工号
+  const workidRegex = /工号[：:]\s*(\d{3,6})/g;
+  while((m=workidRegex.exec(text))!==null){
+    allMatches.push({pos:m.index, type:'workid', val:m[1]});
+  }
+
+  // 费用
+  const feeRegex = /(?:资费|费用|产生)(\d+)元/g;
+  while((m=feeRegex.exec(text))!==null){
+    allMatches.push({pos:m.index, type:'fee', val:m[1]});
+  }
+
+  // 4位网点
+  const stationRegex = /\b([1-9]\d{3})\b/g;
+  while((m=stationRegex.exec(text))!==null){
+    allMatches.push({pos:m.index, type:'station', val:m[1]});
+  }
+
+  // 5-8位 → 车号候选
+  const bikeRegex = /\b(\d{5,8})\b/g;
+  while((m=bikeRegex.exec(text))!==null){
+    allMatches.push({pos:m.index, type:'bike_raw', val:m[1]});
+  }
+
+  // 按出现位置排序
+  allMatches.sort((a,b)=>a.pos-b.pos);
+
+  // 去重并分配：同一位置只保留优先级最高的类型
+  const usedPos = new Set();
+  const typePriority = ['card','phone','bike_raw','date','station','workid','fee'];
+
+  allMatches.forEach(item => {
+    const posKey = item.pos;
+    if(usedPos.has(posKey)) return;
+    // 检查重叠（下一个匹配的pos是否在当前匹配范围内）
+    // 直接加入（简单的去重）
+    if(item.type === 'card'){ result.cards.push(item.val); usedPos.add(posKey); }
+    else if(item.type === 'phone'){ result.phones.push(item.val); usedPos.add(posKey); }
+    else if(item.type === 'bike_raw'){ result.bikes.push(item.val); usedPos.add(posKey); }
+    else if(item.type === 'date'){ result.dates.push(item.val); usedPos.add(posKey); }
+    else if(item.type === 'station'){ result.stations.push(item.val); usedPos.add(posKey); }
+    else if(item.type === 'workid'){ result.workids.push(item.val); usedPos.add(posKey); }
+    else if(item.type === 'fee'){ result.fees.push(item.val); usedPos.add(posKey); }
+  });
+
+  return result;
+}
+
+// ====== 智能映射 ======
+function smartMap(extracted, tplFields){
+  const map = {};
+  tplFields.forEach(f => {
+    switch(f.key){
+      case 'date1':  map[f.key] = extracted.dates[0]||null; break;
+      case 'date2':  map[f.key] = extracted.dates[1]||null; break;
+      case 'card':   map[f.key] = extracted.cards[0]||null; break;
+      case 'phone':  map[f.key] = extracted.phones[0]||null; break;
+      case 'bike':   map[f.key] = extracted.bikes[0]||null; break;
+      case 'station':map[f.key] = extracted.stations[0]||null; break;
+      case 'fee':    map[f.key] = extracted.fees[0]||null; break;
+      case 'workid': map[f.key] = extracted.workids[0]||null; break;
+    }
+  });
+  return map;
+}
+
+// ====== 模板 ======
+const TEMPLATES = [
+  {
+    id:'tpl1', name:'💳 实体卡费用减免·卡号', desc:'实体卡无法使用/消磁等原因，申请费用减免',
+    text:'顾客卡号3100000122075027，2024-01-12 16:23:24租用车号697624，无还车记录。顾客自述一小时内来4053还车，经核实4053站点锁止器故障，车在无法下架，由于顾客急于恢复卡，工作人员已拍照上传至工作群，出于人性化考虑，帮其申请减免费用，望领导批准。工号：1141',
+    fields:[{label:'卡号',key:'card'},{label:'租车时间',key:'date1'},{label:'车号',key:'bike'},{label:'还车网点',key:'station'},{label:'工号',key:'workid'}]
+  },
+  {
+    id:'tpl2', name:'📱 扫码租车超时费退款·手机号', desc:'扫码租车超时产生费用，顾客申请退还',
+    text:'顾客手机号 17732070504，2024-01-12 22:22:19租用车号01914503 于2024-01-13 06:34:45还车成功产生5元租车费用。沟通中顾客对费用不认可，核实后出于人性化考虑，申请退还租车费用，望领导予以批准。工号：1141',
+    fields:[{label:'手机号',key:'phone'},{label:'租车时间',key:'date1'},{label:'车号',key:'bike'},{label:'还车时间',key:'date2'},{label:'费用',key:'fee'},{label:'工号',key:'workid'}]
+  },
+  {
+    id:'tpl3', name:'🅿️ 车位满·卡号', desc:'站点车位满无法还车，申请减免',
+    text:'顾客卡号3100000037113771，2024-08-18 08:33:49 租用车号2402793，车辆出现时间2024-08-20 08:42:39。经核实，4954站点车位满导致其无法及时还车，现该车已有租还车记录，出于人性化考虑，帮其申请减免费用，望领导予以批准。工号：1141',
+    fields:[{label:'卡号',key:'card'},{label:'租车时间',key:'date1'},{label:'车号',key:'bike'},{label:'车辆出现时间',key:'date2'},{label:'车位满站点',key:'station'},{label:'工号',key:'workid'}]
+  },
+  {
+    id:'tpl4', name:'💳 资费退还·卡号', desc:'费用问题致电热线，申请返还资费5元',
+    text:'顾客卡号13957155453 ,车号2302820,租车时间2024-08-18 21:49:35，车辆出现时间2024-08-19 07:15:31。其就费用问题致电热线，结合顾客所述情况，现申请返回其租车资费5元，望领导予以批准。工号：1141',
+    fields:[{label:'卡号',key:'card'},{label:'车号',key:'bike'},{label:'租车时间',key:'date1'},{label:'车辆出现时间',key:'date2'},{label:'费用',key:'fee'},{label:'工号',key:'workid'}]
+  },
+  {
+    id:'tpl5', name:'💳 卡已扣费，要求退还', desc:'还车未成功但已扣费，用户要求退还误扣费用',
+    text:'顾客卡号3100000153407940，02307226  ，2026-05-07 10:47:57还车未成功。用户自行携卡前往站点操作异常卡处理恢复成功，扣款2元，其卡片恢复成功后就费用问题致电热线，经核实车辆在2026-05-07 12:55:07 已有异常还车记录。经核实，情况属实。现结合反映人所述情况，现申请实际返还其误扣费用2元，望领导予以批准。',
+    fields:[{label:'卡号',key:'card'},{label:'车号',key:'bike'},{label:'还车未成功时间',key:'date1'},{label:'异常还车记录时间',key:'date2'},{label:'费用',key:'fee'}]
+  }
+];
+
+// ====== 状态 ======
+let currentTpl = null;
+let parsedFields = {};
+
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+
+function renderTemplates(){
+  const grid = document.getElementById('tplGrid');
+  grid.innerHTML = '';
+  TEMPLATES.forEach(tpl => {
+    const btn = document.createElement('button');
+    btn.className = 'tpl-btn';
+    btn.id = 'tplbtn_'+tpl.id;
+    btn.innerHTML = `<div class="tpl-name">${tpl.name}</div><div class="tpl-desc">${tpl.desc}</div>`;
+    btn.onclick = () => selectTemplate(tpl.id);
+    grid.appendChild(btn);
+  });
+}
+
+function selectTemplate(id){
+  currentTpl = TEMPLATES.find(t=>t.id===id);
+  if(!currentTpl) return;
+  document.querySelectorAll('.tpl-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tplbtn_'+id).classList.add('active');
+
+  // 高亮原文
+  const ext = smartExtract(currentTpl.text);
+  let html = escHtml(currentTpl.text);
+  const vals = [...ext.dates,...ext.cards,...ext.phones,...ext.bikes,...ext.stations,...ext.workids,...ext.fees];
+  vals.forEach(v => { if(v) html = html.replace(new RegExp(escapeRegex(v),'g'), `<span class="hl">${escHtml(v)}</span>`); });
+  document.getElementById('previewBox').innerHTML = html;
+  document.getElementById('cardPreview').style.display = '';
+  document.getElementById('cardNewInfo').style.display = '';
+  document.getElementById('actionsBar').style.display = '';
+  document.getElementById('cardResult').style.display = '';
+  document.getElementById('resultBox').innerHTML = '<span class="empty-tip">结果将显示在这里…</span>';
+  document.getElementById('statsLine').innerHTML = '';
+  document.getElementById('analysisBox').style.display = 'none';
+  document.getElementById('newInfoBox').value = '';
+  document.getElementById('newInfoBox').focus();
+  parsedFields = {};
+}
+
+function getTplFieldValue(tpl, key){
+  const ext = smartExtract(tpl.text);
+  const keyMap = {
+    date1:'dates', date2:'dates', card:'cards', phone:'phones',
+    bike:'bikes', station:'stations', workid:'workids', fee:'fees'
+  };
+  const extKey = keyMap[key] || key;
+  // date2 用第2个日期（从后往前找对应的）
+  if(key === 'date2'){
+    if(ext.dates.length >= 2) return ext.dates[1];
+    // 如果只有一个日期，尝试从模板文本中找"还车时间"前的日期
+    const match = tpl.text.match(/(\d{4}-\d{2}-\d{2}[\s\S]{1,30}?还车[时间成功])|(\d{4}-\d{2}-\d{2}[\s\S]{1,50}?产生\d+元)/);
+    if(match){
+      const d = match[0].substring(0,19);
+      return d;
+    }
+    return ext.dates[0] || null;
+  }
+  return ext[extKey] && ext[extKey].length > 0 ? ext[extKey][0] : null;
+}
+
+function normalizeDate(d){
+  if(!d) return d;
+  let nd = d.replace(/年/g,'-').replace(/月/g,'-').replace(/日/g,'').replace(/\s+/g,' ');
+  // 如果日期和时间连在一起（无空格），插入空格
+  nd = nd.replace(/(\d{4}-\d{2}-\d{2})(\d{2}:)/,'$1 $2');
+  const parts = nd.match(/^(\d+)-(\d+)-(\d+)\s+(\d+):(\d+):?(\d*)$/);
+  if(parts){
+    nd = parts[1]+'-'+String(+parts[2]).padStart(2,'0')+'-'+String(+parts[3]).padStart(2,'0')+' '+
+        String(+parts[4]).padStart(2,'0')+':'+String(+parts[5]).padStart(2,'0')+':'+String(parts[6]||'00').padStart(2,'0');
+  }
+  return nd;
+}
+
+function analyzeAndPreview(){
+  if(!currentTpl) return;
+  const newInfo = document.getElementById('newInfoBox').value.trim();
+  if(!newInfo){ alert('请粘贴新信息！'); return; }
+
+  const extracted = smartExtract(newInfo);
+  parsedFields = smartMap(extracted, currentTpl.fields);
+
+  let html = '';
+  let hasChange = false;
+  currentTpl.fields.forEach(f => {
+    const oldVal = getTplFieldValue(currentTpl, f.key);
+    const newVal = parsedFields[f.key];
+    if(newVal && newVal !== oldVal){
+      hasChange = true;
+      html += `<span class="tag">${escHtml(f.label)}</span>`;
+      html += `<span class="val-old">${escHtml(oldVal||'(未提取)')}</span> → `;
+      html += `<span class="val-new">${escHtml(newVal)}</span>`;
+      if(f.key==='station') html += ' '+getDispatchHtml(newVal);
+      html += '<br>';
+    } else if(newVal){
+      html += `<span class="tag">${escHtml(f.label)}</span>`;
+      html += `<span style="color:#999">${escHtml(newVal)}</span>`;
+      if(f.key==='station') html += ' '+getDispatchHtml(newVal);
+      html += `<span class="same-tag">（相同）</span><br>`;
+    }
+  });
+
+  const box = document.getElementById('analysisBox');
+  if(hasChange) box.innerHTML = '🔍 <strong>识别到以下变化：</strong><br>'+html;
+  else if(html) box.innerHTML = 'ℹ️ <strong>识别的字段（无变化）：</strong><br>'+html;
+  else box.innerHTML = '<span class="no-change">未识别到任何数值，请检查格式。</span>';
+  box.style.display = '';
+}
+
+function doReplace(){
+  if(!currentTpl) return;
+  const newInfo = document.getElementById('newInfoBox').value.trim();
+  if(!newInfo){ alert('请粘贴新信息！'); return; }
+  if(Object.keys(parsedFields).length===0) analyzeAndPreview();
+
+  // 占位符法：先替换成唯一占位符，再统一替换成新值，避免交叉污染
+  let result = currentTpl.text;
+  let count = 0;
+  const replaced = [];
+  const placeholderMap = []; // {placeholder, newVal, label}
+
+  // 第一步：收集所有需要替换的字段，生成唯一占位符
+  const debugRows = [];
+  const replacements = [];
+  currentTpl.fields.forEach(f => {
+    const rawOldVal = getTplFieldValue(currentTpl, f.key);
+    const newVal = parsedFields[f.key];
+    const oldVal = (f.key==='date1'||f.key==='date2') ? normalizeDate(rawOldVal) : rawOldVal;
+    const willReplace = !!(newVal && oldVal && newVal!==oldVal && result.includes(oldVal));
+    debugRows.push({label:f.label, key:f.key, rawOldVal, newVal, oldVal, willReplace});
+    if(willReplace){
+      count++;
+      replaced.push({label:f.label, from:oldVal, to:newVal});
+      const placeholder = `\x00TPL${f.key}\x00`; // 不可见分隔符作为占位符
+      replacements.push({oldVal, placeholder, newVal, label:f.label});
+    }
+  });
+
+  // 第二步：用占位符替换旧值（每个旧值只替换第一次出现）
+  replacements.forEach(r => {
+    const idx = result.indexOf(r.oldVal);
+    if(idx !== -1){
+      result = result.substring(0, idx) + r.placeholder + result.substring(idx + r.oldVal.length);
+    }
+  });
+
+  // 第三步：将占位符替换为新值
+  replacements.forEach(r => {
+    result = result.split(r.placeholder).join(r.newVal);
+  });
+
+  let out = escHtml(result);
+  replaced.forEach(p=>{
+    out = out.replace(new RegExp(escapeRegex(p.to),'g'), `<span class="hl">${escHtml(p.to)}</span>`);
+  });
+
+  document.getElementById('resultBox').innerHTML = out;
+  document.getElementById('cardResult').style.display = '';
+  if(count>0){
+    document.getElementById('statsLine').innerHTML = `共替换 <span>${count}</span> 处（${replaced.map(p=>p.label).join('、')}）`;
+  } else {
+    document.getElementById('statsLine').innerHTML = `<span style="color:#fa8c16">未检测到变化</span>`;
+  }
+  document.getElementById('cardResult').scrollIntoView({behavior:'smooth',block:'start'});
+
+  // 显示调试信息
+  const dbg = document.getElementById('debugBox');
+  let dbgHtml = '<strong style="color:#ffd700">🔍 调试信息</strong><br>';
+  dbgHtml += '<table style="width:100%;border-collapse:collapse;"><tr style="color:#ffd700"><th>字段</th><th>模板原始值</th><th>新值(用户输入)</th><th>结果</th></tr>';
+  debugRows.forEach(r => {
+    const status = r.willReplace ? '✅ 将替换' : (r.newVal ? '⚠️ 未替换' : '❌ 未提取到');
+    const color = r.willReplace ? '#7fff7f' : (r.newVal ? '#ffaa00' : '#ff8080');
+    dbgHtml += `<tr><td>${r.label}(${r.key})</td><td>${r.rawOldVal||'(空)'}</td><td>${r.newVal||'(空)'}</td><td style="color:${color}">${status}</td></tr>`;
+  });
+  dbgHtml += '</table>';
+  dbg.innerHTML = dbgHtml;
+  dbg.style.display = '';
+}
+
+function copyResult(){
+  const text = document.getElementById('resultBox').innerText || document.getElementById('resultBox').textContent;
+  const btn = document.getElementById('btnCopy');
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.textContent='已复制 ✓'; btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent='复制';btn.classList.remove('copied');},2000);
+  }).catch(()=>{
+    const ta=document.createElement('textarea'); ta.value=text;
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent='已复制 ✓'; setTimeout(()=>{btn.textContent='复制';},2000);
+  });
+}
+
+function resetAll(){
+  document.getElementById('newInfoBox').value='';
+  document.getElementById('resultBox').innerHTML='<span class="empty-tip">结果将显示在这里…</span>';
+  document.getElementById('statsLine').innerHTML='';
+  document.getElementById('analysisBox').style.display='none';
+  parsedFields={};
+}
+
+renderTemplates();
+loadSiteData();
+</script>
+</body>
+</html>
