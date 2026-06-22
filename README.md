@@ -16,6 +16,8 @@
 
 本项目含 Python 后端与 API 请求，不能直接运行在 GitHub Pages。GitHub 仓库用于版本管理；若需要公网在线访问，应部署到支持 Python 常驻服务的平台，并在平台中安全配置 `DEEPSEEK_API_KEY`。
 
+仓库包含 `render.yaml`，可通过 Render Blueprint 直接创建 Web Service。
+
 ## 安全
 
 请勿把 DeepSeek API 密钥提交到仓库。项目已忽略 `.env` 文件。
